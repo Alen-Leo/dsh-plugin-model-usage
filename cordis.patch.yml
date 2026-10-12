@@ -1,0 +1,7 @@
+# dsh-plugin-model-usage bundle patch: inserts the browser-side model-usage
+# pill plugin into the profile. Configuration (sources / API keys) belongs to
+# the profile's own cordis.patch.yml override so upgrading this bundle never
+# touches secrets.
+- insert:
+    - id: model-usage
+      name: dsh-plugin-model-usage

@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Secrets & credentials — never commit
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+credentials.yaml
+credentials.yml
+.dsh/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+pnpm-debug.log*
+
+# Build output & coverage
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+
+# OS & editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Misc caches
+.cache/
+*.tsbuildinfo
