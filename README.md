@@ -9,16 +9,20 @@ DSH plugin that shows a usage pill for the **currently selected model** in the s
 **Option 1 — let the AI do it.** Copy this into a DSH session (replace the path with your plugin directory):
 
 ```text
-Install the local plugin at <absolute-path>/dsh-plugin-model-usage and configure model-usage in my profile per the README "Configuration" section: add one source with kind: zhipu-cn (use deepseek for DeepSeek). I'll send you the apiKey in my next message. Tell me whether a restart is needed.
+Install the local plugin at <absolute-path>/dsh-plugin-model-usage and configure model-usage per the README "Configuration" section: first check ~/.dsh/.credentials.yaml for an existing key (ZAI_CODING_CN_API_KEY pairs with kind: zhipu-cn, DEEPSEEK_API_KEY with kind: deepseek) and write it into my profile after I confirm; if none fits, hand me the copyable snippet and the patch-file path so I can fill it in myself and restart.
 ```
 
-**Option 2 — manual.** Use the plugin_manager tool in a DSH session:
+⚠️ Never paste an API key into the conversation — conversation content is preserved durably in the session log, and the key lands there with it. Let the AI reference the credentials store, or fill the form yourself.
+
+**Option 2 — the "Plugins" page.** Both Web and Desktop expose the "Plugins" panel in the sidebar; install from a local path there.
+
+**Option 3 — manual.** Use the plugin_manager tool in a DSH session:
 
 ```bash
 install_bundle  target=<absolute-path>/dsh-plugin-model-usage
 ```
 
-or install from a local path via the Web "Plugins" page.
+A first install applies immediately: refresh the page once on Web, or restart the app on Desktop.
 
 ## Configuration
 
@@ -30,11 +34,11 @@ or install from a local path via the Web "Plugins" page.
 | `zhipu-cn` | Zhipu CN (same backend) | `https://open.bigmodel.cn` | same | same |
 | `deepseek` | DeepSeek open platform | `https://api.deepseek.com` | `GET /user/balance` | `Bal ¥xx.xx` |
 
-All three endpoints allow direct browser access (CORS enabled); requests go from the browser to the platform, no proxying. Field-semantics notes live in the header comment of `lib/client.js` and in the real-response fixtures under `tests/`.
+All three endpoints allow direct client access (CORS enabled): requests go straight from the client (Web or Desktop) to the platform, no proxying. Field-semantics notes live in the header comment of `lib/client.js` and in the real-response fixtures under `tests/`.
 
-### Where to write
+### File: the profile patch (needs an app restart)
 
-Config lives in the profile's `~/.dsh/profiles/<name>/cordis.patch.yml` (`<name>` e.g. desktop, web; plugin upgrades never touch it), or in the Web "Settings → model-usage" form (applies immediately; file edits need an app restart):
+Config lives in the profile's `~/.dsh/profiles/<name>/cordis.patch.yml` (`<name>` e.g. desktop, web; plugin upgrades never touch it):
 
 ```yaml
 - id: model-usage
@@ -48,6 +52,16 @@ Config lives in the profile's `~/.dsh/profiles/<name>/cordis.patch.yml` (`<name>
     providers:                  # optional: provider id -> source; inferred by name when omitted
       zai-coding-cn: glm-cn     # (ids containing zai/zhipu/glm -> zai-family sources; deepseek -> deepseek)
 ```
+
+### Existing env var: zero-copy reference
+
+When the key is already exported in the environment of the dsh process, reference it directly instead of storing another copy in the profile:
+
+```yaml
+        apiKey: !!js process.env.ZAI_CODING_CN_API_KEY ?? ''
+```
+
+Note that `!!js` reads the raw process environment of dsh; keys that exist only in `~/.dsh/.credentials.yaml` (resolved through the credentials service for `apiKeyEnv`) are invisible to it — use one of the two routes above in that case.
 
 - **Provider mapping (important)**: DSH's `zai-coding-cn` provider actually requests `open.bigmodel.cn`, and its key comes from bigmodel.cn — it must be paired with `kind: zhipu-cn`. Only the `zai` provider (api.z.ai) uses `kind: zai`. The keys are not interchangeable; a mismatch shows "API key invalid or unauthorized".
 - The `deepseek` key is created on the [platform.deepseek.com](https://platform.deepseek.com) "API Keys" page (starts with `sk-`); the balance endpoint reads the **open-platform balance**, separate from the in-app `deepseek-account` plan quota.
@@ -67,7 +81,8 @@ If the file has no `model-usage` entry yet, write the whole block from the examp
 
 ## Troubleshooting
 
-- **Pill never appears**: no source matching the current provider's kind, or an empty apiKey — hidden by design; check "Settings → model-usage".
+- **Pill shows "Set up DeepSeek/GLM usage"**: the current model's provider belongs to a known platform but has no covering source or apiKey (e.g. switching to an account-signed-in DeepSeek model with no deepseek source). Click the pill, copy the YAML snippet into the profile patch, and restart the app afterwards.
+- **Pill never appears**: the provider belongs to no known platform — nothing to display, hidden by design.
 - **"usage failed"**: open the dialog for the concrete reason at its bottom; "API key invalid or unauthorized" usually means a mistyped key or a kind/provider endpoint mismatch (see the mapping above).
 
 ## Development
@@ -78,8 +93,8 @@ node tests/render.test.mjs                                # dialog render-contra
 node tests/live-e2e.mjs <apiKey> [zai|zhipu-cn|deepseek]  # online end-to-end; kind defaults to zhipu-cn
 ```
 
-- `lib/index.js` — host half: Config schema; `.volatile()` ships the config to the browser via the settings mirror;
-- `lib/client.js` — browser half (prebuilt bundle): fetching, parsing, pill and dialog;
+- `lib/index.js` — host half: Config schema; `.volatile()` ships the config to the client (Web and Desktop) via the settings mirror;
+- `lib/client.js` — client half (prebuilt bundle): fetching, parsing, pill and dialog;
 - Registered seat: `conversation.composer.dock` (session scope), `id: model-usage`.
 
-After updating the code, toggle the `model-usage` entry off and on (or restart the app), then refresh the page.
+After updating the code, toggle the `model-usage` entry off and on (or restart the app), then refresh the page on Web or restart the app on Desktop.

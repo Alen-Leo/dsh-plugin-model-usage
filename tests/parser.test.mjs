@@ -42,7 +42,7 @@ const source = readFileSync(new URL("../lib/client.js", import.meta.url), "utf8"
 new Function("window", source)(window);
 if (!harness.reg) throw new Error("bundle did not register");
 const mod = harness.reg.factory(requireStub);
-const { parseZai, UsageManager, pillView, windowMinutes, DEFAULT_BASES } = mod.__internals;
+const { parseZai, UsageManager, pillView, windowMinutes, DEFAULT_BASES, familyOf, suggestKindFor, setupSnippet } = mod.__internals;
 
 let passed = 0;
 let failed = 0;
@@ -215,6 +215,17 @@ check("refresh change replaces source", keepMgr.getSource("a") !== keepSrc && ke
 keepMgr.update({ refreshMinutes: 9, sources: { a: { kind: "zai", apiKey: "other" } } }); // key change
 check("apiKey change replaces source", keepMgr.getSource("a").cfg.apiKey === "other");
 keepMgr.dispose();
+
+// --- provider families and the setup-hint suggestion ---
+check("family: deepseek-account", familyOf("deepseek-account") === "deepseek");
+check("family: zai-coding-cn", familyOf("zai-coding-cn") === "zai");
+check("family: unknown provider", familyOf("openai") === null);
+check("family: embedded name does not match", familyOf("mydeepseekx") === null);
+check("suggest: cn provider maps to zhipu-cn", suggestKindFor("zai-coding-cn", "zai") === "zhipu-cn");
+check("suggest: plain zai provider maps to zai", suggestKindFor("zai", "zai") === "zai");
+check("suggest: deepseek family", suggestKindFor("deepseek-account", "deepseek") === "deepseek");
+check("snippet: deepseek lines", setupSnippet("deepseek") === "sources:\n  deepseek:\n    kind: deepseek\n    apiKey: <your-api-key>");
+check("snippet: zhipu-cn lines", setupSnippet("zhipu-cn").includes("kind: zhipu-cn"));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

@@ -180,5 +180,31 @@ check("deepseek summary line carries only the total",
 check("deepseek granted/topped-up move to a parenthesized second line",
 	dsTable.some((r) => r.sub === "(赠送 ¥0.00 · 充值 ¥42.14)"), JSON.stringify(dsTable));
 
+// --- setup hint: known family without a covering source (account-login deepseek) ---
+// ModelUsagePill consumes one useState (its own `open`) before SetupPill's
+// `open`/`copied` read the queue: feed [own=false, setup open=true, copied=false].
+useStateQueue.push(false, true, false);
+const setupTree = Pill({
+	useProjection: () => ({ next: { provider: "deepseek-account" } }),
+	useUsage: () => undefined,
+	useConfigVersion: (fn) => fn(1),
+	resolveSource: () => null,
+	getSource: () => undefined,
+	familyOf: (id) => (/(^|[^a-z])deepseek([^a-z]|$)/.test(id.toLowerCase()) ? "deepseek" : "zai"),
+	t,
+});
+// The stub does not invoke function components: render SetupPill with its props.
+const setupRoot = setupTree.type(setupTree.props);
+const [setupBtn] = find(setupRoot, (n) => n.type === "button" && n.props.className === "dmu-pill");
+check("setup pill button names the platform", text(setupBtn).includes("DeepSeek"), JSON.stringify(text(setupBtn)));
+const [setupPanel] = find(setupRoot, (n) => n.type === "div" && n.props.role === "dialog");
+check("setup dialog portaled while open", setupPanel !== undefined);
+const setupText = text(setupPanel);
+check("setup dialog names the provider", setupText.includes("deepseek-account"), setupText);
+check("setup dialog suggests kind: deepseek", setupText.includes("kind: deepseek"));
+check("setup dialog names the profile patch file", setupText.includes("cordis.patch.yml"));
+check("setup dialog carries the snippet apiKey line", setupText.includes("apiKey: <your-api-key>"));
+check("setup dialog offers a copy control", find(setupPanel, (n) => n.type === "button" && n.props.className === "dmu-copy").length === 1);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
